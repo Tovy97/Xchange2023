@@ -1,0 +1,4 @@
+Faker~=18.7.0
+Pandas~=2.0.1
+geonamescache~=1.6.0
+faker-commerce~=1.0.3
