@@ -77,7 +77,7 @@ def generate_fake_order() -> Tuple[Dict, List[Dict]]:
             start_date="-10y"
         ),
         'city': city_dict['name'],
-        'country': country_dict['name'],
+        'country': country_dict['iso'],
         'currency': country_dict['currencycode']
     }
     rows_of_order, total_price = generate_fake_order_rows(order['order_id'])
