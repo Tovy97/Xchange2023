@@ -4,14 +4,14 @@ from datetime import datetime
 from io import BytesIO
 from random import randint, choice
 from typing import *
-from zipfile import ZipFile
 
 import faker_commerce
-from cryptography.fernet import Fernet
+import pyzipper
 from faker import Faker
 from geonamescache import GeonamesCache
 from google.cloud.storage import Client as GoogleCloudStorageClient
 from pandas import DataFrame
+from pyzipper import AESZipFile
 
 logging.basicConfig()
 logging.getLogger().setLevel(logging.INFO)
@@ -33,7 +33,6 @@ local_fake: Faker = Faker([
 ])
 
 geo_names_cache: GeonamesCache = GeonamesCache()
-fernet: Fernet = Fernet(FILE_PASSWORD)
 
 
 def generate_fake_order_row(order_id: str) -> Tuple[Dict, float]:
@@ -44,6 +43,7 @@ def generate_fake_order_row(order_id: str) -> Tuple[Dict, float]:
         max_value=99.99,
         min_value=0.1
     )
+    price = round(price, 2)
     quantity = fake.pyint(
         min_value=1,
         max_value=10
@@ -129,24 +129,26 @@ def generate_fake_orders() -> Tuple[DataFrame, DataFrame]:
     )
 
 
-def encrypt_dataframe(dataframe: DataFrame) -> DataFrame:
-    return dataframe.apply(lambda x: x.astype(str)).applymap(lambda x: fernet.encrypt(x.encode('utf-8')))
-
-
 def get_files() -> Tuple[BytesIO, BytesIO]:
     orders = BytesIO()
     rows_of_orders = BytesIO()
 
     df_orders, df_rows_of_orders = generate_fake_orders()
 
-    encrypt_dataframe(df_orders).to_csv(orders, index=False)
-    encrypt_dataframe(df_rows_of_orders).to_csv(rows_of_orders, index=False)
+    df_orders.to_csv(orders, index=False)
+    df_rows_of_orders.to_csv(rows_of_orders, index=False)
     return orders, rows_of_orders
 
 
 def zip_files(orders: BytesIO, rows_of_orders: BytesIO) -> BytesIO:
     zipped_file = BytesIO()
-    with ZipFile(zipped_file, mode="w") as archive:
+    with AESZipFile(
+            zipped_file,
+            mode="w",
+            compression=pyzipper.ZIP_LZMA,
+            encryption=pyzipper.WZ_AES
+    ) as archive:
+        archive.setpassword(FILE_PASSWORD)
         archive.writestr('orders.csv', orders.getvalue())
         archive.writestr('rows_of_orders.csv', rows_of_orders.getvalue())
     return zipped_file
