@@ -129,7 +129,7 @@ def generate_fake_orders() -> Tuple[DataFrame, DataFrame]:
     )
 
 
-def cypher_dataframe(dataframe: DataFrame) -> DataFrame:
+def encrypt_dataframe(dataframe: DataFrame) -> DataFrame:
     return dataframe.apply(lambda x: x.astype(str)).applymap(lambda x: fernet.encrypt(x.encode('utf-8')))
 
 
@@ -139,8 +139,8 @@ def get_files() -> Tuple[BytesIO, BytesIO]:
 
     df_orders, df_rows_of_orders = generate_fake_orders()
 
-    cypher_dataframe(df_orders).to_csv(orders, index=False)
-    cypher_dataframe(df_rows_of_orders).to_csv(rows_of_orders, index=False)
+    encrypt_dataframe(df_orders).to_csv(orders, index=False)
+    encrypt_dataframe(df_rows_of_orders).to_csv(rows_of_orders, index=False)
     return orders, rows_of_orders
 
 
