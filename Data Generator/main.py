@@ -1,14 +1,22 @@
+import logging
 import os
+from datetime import datetime
+from io import BytesIO
 from random import randint, choice
 from typing import *
+from zipfile import ZipFile
 
 import faker_commerce
 from faker import Faker
 from geonamescache import GeonamesCache
+from google.cloud.storage import Client as GoogleCloudStorageClient
 from pandas import DataFrame
 
-ORDER_NUMBER = 5000
-MAX_ROW_FOR_ORDER = 20
+logging.basicConfig()
+logging.getLogger().setLevel(logging.INFO)
+
+ORDER_NUMBER: int = 5000
+MAX_ROW_FOR_ORDER: int = 20
 
 fake: Faker = Faker()
 fake.add_provider(faker_commerce.Provider)
@@ -20,10 +28,10 @@ local_fake: Faker = Faker([
     'pt_PT', 'ro_RO', 'sl_SI', 'sv_SE', 'tr_TR', 'tw_GH',
 ])
 
-geo_names_cache = GeonamesCache()
+geo_names_cache: GeonamesCache = GeonamesCache()
 
 
-def generate_fake_order_row(order_id) -> Tuple[Dict, float]:
+def generate_fake_order_row(order_id: str) -> Tuple[Dict, float]:
     price = fake.pyfloat(
         left_digits=2,
         right_digits=2,
@@ -46,7 +54,7 @@ def generate_fake_order_row(order_id) -> Tuple[Dict, float]:
     return row, total_price
 
 
-def generate_fake_order_rows(order_id) -> Tuple[List[Dict], float]:
+def generate_fake_order_rows(order_id: str) -> Tuple[List[Dict], float]:
     rows = []
     total_price = 0
     for j in range(randint(1, MAX_ROW_FOR_ORDER)):
@@ -116,8 +124,62 @@ def generate_fake_orders() -> Tuple[DataFrame, DataFrame]:
     )
 
 
-if __name__ == '__main__':
-    os.makedirs('output/', exist_ok=True)
+def get_data() -> Tuple[BytesIO, BytesIO]:
+    orders = BytesIO()
+    rows_of_orders = BytesIO()
+
     df_orders, df_rows_of_orders = generate_fake_orders()
-    df_orders.to_csv('output/orders.csv', index=False)
-    df_rows_of_orders.to_csv('output/rows_of_orders.csv', index=False)
+
+    df_orders.to_csv(orders, index=False)
+    df_rows_of_orders.to_csv(rows_of_orders, index=False)
+    return orders, rows_of_orders
+
+
+def zip_data(orders: BytesIO, rows_of_orders: BytesIO) -> BytesIO:
+    zipped_file = BytesIO()
+    with ZipFile(zipped_file, mode="w") as archive:
+        archive.writestr('orders.csv', orders.getvalue())
+        archive.writestr('rows_of_orders.csv', rows_of_orders.getvalue())
+    return zipped_file
+
+
+def get_file_name() -> str:
+    now = datetime.now().strftime('%Y_%m_%d-%H_%M_%S-%f')
+    return f'orders_to_ingest-{now}.zip'
+
+
+def write_on_disk(filename: str, zipped_file: BytesIO) -> None:
+    os.makedirs('output/', exist_ok=True)
+    zipped_file.seek(0)
+    with open(f'output/{filename}', 'wb') as file:
+        file.write(zipped_file.getvalue())
+
+
+def write_on_gcs(filename: str, zipped_file: BytesIO) -> None:
+    zipped_file.seek(0)
+    google_cloud_storage_client = GoogleCloudStorageClient()
+    bucket = google_cloud_storage_client.bucket('xchange-23')
+    blob = bucket.blob(filename)
+    blob.upload_from_file(zipped_file)
+
+
+def main() -> None:
+    try:
+        orders, rows_of_orders = get_data()
+        logging.info("CSV files generated")
+        zipped_file = zip_data(orders, rows_of_orders)
+        logging.info("CSV files zipped")
+        filename = get_file_name()
+        logging.info("Filename generated")
+        write_on_disk(filename, zipped_file)
+        logging.info("Zip wrote on local disk")
+        write_on_gcs(filename, zipped_file)
+        logging.info("Zip wrote on GCS bucket")
+    except Exception as e:
+        logging.exception(f"Script failed with {str(e)!r}")
+
+
+if __name__ == '__main__':
+    logging.info("Script started")
+    main()
+    logging.info("Script ended")
