@@ -7,6 +7,7 @@ from typing import *
 from zipfile import ZipFile
 
 import faker_commerce
+from cryptography.fernet import Fernet
 from faker import Faker
 from geonamescache import GeonamesCache
 from google.cloud.storage import Client as GoogleCloudStorageClient
@@ -14,6 +15,9 @@ from pandas import DataFrame
 
 logging.basicConfig()
 logging.getLogger().setLevel(logging.INFO)
+
+BUCKET_NAME: str = 'xchange-23'
+FILE_PASSWORD: bytes = b'7B-H6CYVB8NHOc7obTEq3Wf7IecLSNc5awzGa8H_6zg='
 
 ORDER_NUMBER: int = 5000
 MAX_ROW_FOR_ORDER: int = 20
@@ -29,6 +33,7 @@ local_fake: Faker = Faker([
 ])
 
 geo_names_cache: GeonamesCache = GeonamesCache()
+fernet: Fernet = Fernet(FILE_PASSWORD)
 
 
 def generate_fake_order_row(order_id: str) -> Tuple[Dict, float]:
@@ -124,14 +129,18 @@ def generate_fake_orders() -> Tuple[DataFrame, DataFrame]:
     )
 
 
+def cypher_dataframe(dataframe: DataFrame) -> DataFrame:
+    return dataframe.apply(lambda x: x.astype(str)).applymap(lambda x: fernet.encrypt(x.encode('utf-8')))
+
+
 def get_files() -> Tuple[BytesIO, BytesIO]:
     orders = BytesIO()
     rows_of_orders = BytesIO()
 
     df_orders, df_rows_of_orders = generate_fake_orders()
 
-    df_orders.to_csv(orders, index=False)
-    df_rows_of_orders.to_csv(rows_of_orders, index=False)
+    cypher_dataframe(df_orders).to_csv(orders, index=False)
+    cypher_dataframe(df_rows_of_orders).to_csv(rows_of_orders, index=False)
     return orders, rows_of_orders
 
 
@@ -158,7 +167,7 @@ def write_on_disk(filename: str, zipped_file: BytesIO) -> None:
 def write_on_gcs(filename: str, zipped_file: BytesIO) -> None:
     zipped_file.seek(0)
     google_cloud_storage_client = GoogleCloudStorageClient()
-    bucket = google_cloud_storage_client.bucket('xchange-23')
+    bucket = google_cloud_storage_client.bucket(BUCKET_NAME)
     blob = bucket.blob(filename)
     blob.upload_from_file(zipped_file)
 
