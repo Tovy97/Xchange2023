@@ -1,7 +1,7 @@
-Faker~=18.7.0
+Faker~=18.9.0
 Pandas~=2.0.1
 geonamescache~=1.6.0
 faker-commerce~=1.0.3
 google~=3.0.0
 google-cloud-storage~=2.9.0
-cryptography~=40.0.2
+pyzipper~=0.3.6
