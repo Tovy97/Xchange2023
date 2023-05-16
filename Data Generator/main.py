@@ -124,7 +124,7 @@ def generate_fake_orders() -> Tuple[DataFrame, DataFrame]:
     )
 
 
-def get_data() -> Tuple[BytesIO, BytesIO]:
+def get_files() -> Tuple[BytesIO, BytesIO]:
     orders = BytesIO()
     rows_of_orders = BytesIO()
 
@@ -135,7 +135,7 @@ def get_data() -> Tuple[BytesIO, BytesIO]:
     return orders, rows_of_orders
 
 
-def zip_data(orders: BytesIO, rows_of_orders: BytesIO) -> BytesIO:
+def zip_files(orders: BytesIO, rows_of_orders: BytesIO) -> BytesIO:
     zipped_file = BytesIO()
     with ZipFile(zipped_file, mode="w") as archive:
         archive.writestr('orders.csv', orders.getvalue())
@@ -143,7 +143,7 @@ def zip_data(orders: BytesIO, rows_of_orders: BytesIO) -> BytesIO:
     return zipped_file
 
 
-def get_file_name() -> str:
+def get_filename() -> str:
     now = datetime.now().strftime('%Y_%m_%d-%H_%M_%S-%f')
     return f'orders_to_ingest-{now}.zip'
 
@@ -165,11 +165,11 @@ def write_on_gcs(filename: str, zipped_file: BytesIO) -> None:
 
 def main() -> None:
     try:
-        orders, rows_of_orders = get_data()
+        orders, rows_of_orders = get_files()
         logging.info("CSV files generated")
-        zipped_file = zip_data(orders, rows_of_orders)
+        zipped_file = zip_files(orders, rows_of_orders)
         logging.info("CSV files zipped")
-        filename = get_file_name()
+        filename = get_filename()
         logging.info("Filename generated")
         write_on_disk(filename, zipped_file)
         logging.info("Zip wrote on local disk")
