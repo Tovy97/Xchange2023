@@ -75,6 +75,7 @@ FILE_COLUMN_TYPE: Dict[str, Dict[str, Dict[str, Type]]] = {
 
 
 def read_password_from_secret_manager(secret_id: str, version_id: str = 'latest') -> bytes:
+    logging.info(f'Reading secret {secret_id!r} from SecretManager')
     secret_manager_client = GoogleCloudSecretManagerClient()
     secret = secret_manager_client.access_secret_version(
         name=f'projects/{PROJECT_ID}/secrets/{secret_id}/versions/{version_id}'
@@ -87,6 +88,7 @@ def read_password_from_secret_manager(secret_id: str, version_id: str = 'latest'
 
 
 def read_zip_file_from_gcs(bucket_name: str, filename: str) -> BytesIO:
+    logging.info(f'Reading zip file {filename!r} from GCS bucket {bucket_name!r}')
     bucket = google_cloud_storage_client.bucket(bucket_name)
     blob = bucket.blob(filename)
     return BytesIO(blob.download_as_bytes())
@@ -101,7 +103,10 @@ def read_zip_file_from_disk(filename: str) -> BytesIO:
 def unzip_files(zipped_file: BytesIO) -> Dict[str, DataFrame]:
     files = {}
     with AESZipFile(zipped_file, mode="r") as archive:
-        password = read_password_from_secret_manager(SECRET_ID)
+        if 'DECRYPTION_PASSWORD' in os.environ:
+            password = str.encode(os.getenv('DECRYPTION_PASSWORD'))
+        else:
+            password = read_password_from_secret_manager(SECRET_ID)
         archive.setpassword(password)
         for file in archive.filelist:
             filename = file.filename
@@ -117,6 +122,8 @@ def unzip_files(zipped_file: BytesIO) -> Dict[str, DataFrame]:
 def load_file_on_big_query(filename: str, file: DataFrame) -> None:
     table_id = FILE_TABLE_MAPPING[filename]
     table_schema = TABLE_SCHEMA[filename]
+
+    logging.info(f'Writing rows on table {table_id!r} in  BigTable')
 
     pandas_gbq.to_gbq(
         file,
@@ -157,7 +164,8 @@ def ingest_data(cloud_event: CloudEvent) -> None:
         load_file_on_big_query(filename, file)
         logging.info(f'Processing of CSV file {filename!r} finished')
 
-    archive_zip_file(bucket, name)
-    logging.info(f'Zip file archived in {ARCHIVE_BUCKET!r}')
+    if os.getenv('ARCHIVE', "False") == 'True':
+        archive_zip_file(bucket, name)
+        logging.info(f'Zip file archived in {ARCHIVE_BUCKET!r}')
 
     logging.info("END")
