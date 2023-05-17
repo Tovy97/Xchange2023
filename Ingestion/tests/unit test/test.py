@@ -1,9 +1,13 @@
-from mock import MagicMock
+import os
 
-from main import ingest_data
+from envyaml import EnvYAML
+from mock import MagicMock
 
 
 def test_ingest_data() -> None:
+    env = EnvYAML('env.yaml')
+    os.environ.update(env.export())
+
     cloud_event = MagicMock()
     cloud_event.specversion = "1.0"
     cloud_event.id = "7718729690826582",
@@ -32,6 +36,8 @@ def test_ingest_data() -> None:
         "crc32c": "MqZNtg==",
         "etag": "CKeZ45Wq+v4CEAE="
     }
+
+    from main import ingest_data
 
     ingest_data(cloud_event)
 

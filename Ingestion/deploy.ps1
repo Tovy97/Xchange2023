@@ -11,6 +11,7 @@ $MIN_INSTANCE = 0
 $BUCKET_NAME = "xchange-23"
 $FUNCTION_SA = "cloud-function-sa@goreply-xchange2023-datastudio.iam.gserviceaccount.com"
 $EVENTARC_SA = "eventarc-trigger-sa@goreply-xchange2023-datastudio.iam.gserviceaccount.com"
+$YAML_ENV_FILE = "env.yaml"
 
 gcloud functions deploy                     $FUNCTION_NAME `
     --project                               $PROJECT `
@@ -31,4 +32,5 @@ gcloud functions deploy                     $FUNCTION_NAME `
     --max-instances                         $MAX_INSTANCE `
     --min-instances                         $MIN_INSTANCE `
     --trigger-event                         google.cloud.storage.object.v1.finalized `
-    --trigger-resource                      $BUCKET_NAME
+    --trigger-resource                      $BUCKET_NAME `
+    --env-vars-file                         $YAML_ENV_FILE

@@ -1,4 +1,5 @@
 import logging
+import os
 from decimal import Decimal
 from io import BytesIO
 from typing import *
@@ -19,9 +20,9 @@ google_cloud_storage_client: GoogleCloudStorageClient = GoogleCloudStorageClient
 
 logging_client.setup_logging()
 
-PROJECT_ID: str = 'goreply-xchange2023-datastudio'
-SECRET_ID: str = 'csv_file_decryption_password'
-ARCHIVE_BUCKET: str = 'xchange-23_archive'
+PROJECT_ID: str = os.getenv('PROJECT_ID')
+SECRET_ID: str = os.getenv('SECRET_ID')
+ARCHIVE_BUCKET: str = os.getenv('ARCHIVE_BUCKET')
 
 FILE_TABLE_MAPPING: Dict[str, str] = {
     'orders.csv': 'Xchange_23.Orders',
@@ -136,6 +137,8 @@ def archive_zip_file(bucket_name: str, filename: str) -> None:
 
 @functions_framework.cloud_event
 def ingest_data(cloud_event: CloudEvent) -> None:
+    logging.info("START")
+
     logging.info(f"Cloud event received: {cloud_event!r}")
     data = cloud_event.data
 
@@ -156,3 +159,5 @@ def ingest_data(cloud_event: CloudEvent) -> None:
 
     archive_zip_file(bucket, name)
     logging.info(f'Zip file archived in {ARCHIVE_BUCKET!r}')
+
+    logging.info("END")
