@@ -1,5 +1,8 @@
-venv
 .idea
-.gitignore
+**/.pytest_cache
 tests
+venv
+.gcloudignore
+.gitignore
 deploy.ps1
+env.yaml
