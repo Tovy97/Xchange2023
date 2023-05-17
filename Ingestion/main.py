@@ -1,3 +1,4 @@
+import logging
 from decimal import Decimal
 from io import BytesIO
 from typing import *
@@ -44,22 +45,30 @@ TABLE_SCHEMA: Dict[str, List[Dict[str, str]]] = {
         {'name': 'total_price', 'type': 'NUMERIC(7,2) REQUIRED'}
     ]
 }
-FILE_COLUMN_TYPE: Dict[str, Dict[str, Type]] = {
+FILE_COLUMN_TYPE: Dict[str, Dict[str, Dict[str, Type]]] = {
     'orders.csv': {
-        'order_id': str,
-        'customer_name': str,
-        'price': Decimal,
-        'currency': str,
-        'order_date': str,
-        'city': str,
-        'country': str
+        'dtype': {
+            'order_id': str,
+            'customer_name': str,
+            'currency': str,
+            'order_date': str,
+            'city': str,
+            'country': str
+        },
+        'converters': {
+            'price': Decimal
+        },
     },
     'rows_of_orders.csv': {
-        'order_id': str,
-        'product_name': str,
-        'price_per_unit': Decimal,
-        'quantity': int,
-        'total_price': Decimal
+        'dtype': {
+            'order_id': str,
+            'product_name': str,
+            'quantity': int
+        },
+        'converters': {
+            'price_per_unit': Decimal,
+            'total_price': Decimal
+        }
     }
 }
 
@@ -97,13 +106,14 @@ def unzip_files(zipped_file: BytesIO) -> Dict[str, DataFrame]:
             filename = file.filename
             files[filename] = pandas.read_csv(
                 BytesIO(archive.read(file)),
-                converters=FILE_COLUMN_TYPE[filename],
+                dtype=FILE_COLUMN_TYPE[filename]['dtype'],
+                converters=FILE_COLUMN_TYPE[filename]['converters'],
                 na_filter=False
             )
     return files
 
 
-def process_file(filename: str, file: DataFrame) -> None:
+def load_file_on_big_query(filename: str, file: DataFrame) -> None:
     table_id = FILE_TABLE_MAPPING[filename]
     table_schema = TABLE_SCHEMA[filename]
 
@@ -126,14 +136,23 @@ def archive_zip_file(bucket_name: str, filename: str) -> None:
 
 @functions_framework.cloud_event
 def ingest_data(cloud_event: CloudEvent) -> None:
+    logging.info(f"Cloud event received: {cloud_event!r}")
     data = cloud_event.data
 
     bucket = data["bucket"]
     name = data["name"]
+    logging.info(f"Bucket: {bucket!r}, filename: {name!r}")
 
     zipped_file = read_zip_file_from_gcs(bucket, name)
+    logging.info('Zip file retrieved from GCS')
+
     files = unzip_files(zipped_file)
+    logging.info('CSV files unzipped and decrypted from zip file')
+
     for filename, file in files.items():
-        process_file(filename, file)
+        logging.info(f'Processing of CSV file {filename!r} started')
+        load_file_on_big_query(filename, file)
+        logging.info(f'Processing of CSV file {filename!r} finished')
 
     archive_zip_file(bucket, name)
+    logging.info(f'Zip file archived in {ARCHIVE_BUCKET!r}')
