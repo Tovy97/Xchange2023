@@ -1,0 +1,20 @@
+gcloud functions deploy ingest-data `
+    --project goreply-xchange2023-datastudio `
+    --region europe-west1 `
+    --no-allow-unauthenticated `
+    --entry-point ingest_data `
+    --gen2 `
+    --memory 512MiB `
+    --retry `
+    --run-service-account cloud-function-sa@goreply-xchange2023-datastudio.iam.gserviceaccount.com `
+    --service-account    cloud-function-sa@goreply-xchange2023-datastudio.iam.gserviceaccount.com `
+    --runtime python310 `
+    --serve-all-traffic-latest-revision `
+    --source . `
+    --timeout 540s `
+    --trigger-location europe-west1 `
+    --trigger-service-account eventarc-trigger-sa@goreply-xchange2023-datastudio.iam.gserviceaccount.com `
+    --max-instances 10 `
+    --min-instances 0 `
+    --trigger-event google.cloud.storage.object.v1.finalized `
+    --trigger-resource xchange-23

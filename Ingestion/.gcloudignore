@@ -2,3 +2,4 @@ venv
 .idea
 .gitignore
 tests
+deploy.ps1
