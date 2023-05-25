@@ -3,7 +3,7 @@ import os
 from datetime import datetime
 from io import BytesIO
 from random import randint, choice
-from typing import *
+from typing import Tuple, Dict, List
 
 import faker_commerce
 import pyzipper
@@ -62,7 +62,7 @@ def generate_fake_order_row(order_id: str) -> Tuple[Dict, float]:
 def generate_fake_order_rows(order_id: str) -> Tuple[List[Dict], float]:
     rows = []
     total_price = 0
-    for j in range(randint(1, MAX_ROW_FOR_ORDER)):
+    for _ in range(randint(1, MAX_ROW_FOR_ORDER)):
         row, price = generate_fake_order_row(order_id)
         rows.append(row)
         total_price += price
@@ -101,7 +101,7 @@ def generate_fake_order() -> Tuple[Dict, List[Dict]]:
 def generate_fake_orders() -> Tuple[DataFrame, DataFrame]:
     orders = []
     rows_of_orders = []
-    for i in range(ORDER_NUMBER):
+    for _ in range(ORDER_NUMBER):
         order, rows_of_order = generate_fake_order()
         orders.append(order)
         rows_of_orders.extend(rows_of_order)
