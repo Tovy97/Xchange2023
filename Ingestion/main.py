@@ -2,7 +2,7 @@ import logging
 import os
 from decimal import Decimal
 from io import BytesIO
-from typing import *
+from typing import Dict, List, Type
 
 import functions_framework
 import pandas
